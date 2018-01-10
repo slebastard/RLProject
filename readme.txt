@@ -1,4 +1,6 @@
-ToDo list:
+---------------
+-- ToDo list --
+---------------
 
 P0
 - Create framework for HRL
