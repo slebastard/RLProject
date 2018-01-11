@@ -4,7 +4,7 @@
 
 P0
 - Create framework for HRL
-	- MAXQ algorithm
+	- MAXQ algorithm				... to be tested
 	- 2-rooms and/or 4-rooms tasks
 		- Article from Botvinick et al on Drive: look at their implementation of 4-rooms
 		- Implement

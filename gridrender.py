@@ -7,12 +7,12 @@ class GUI(Canvas):
         Canvas.__init__(self, master=master, *args, **kwargs)
 
 
-def draw_square_q(polygon, x, y, q, actions, dim=50):
+def draw_square_q(polygon, x, y, q, actions, dim=15):
     polygon.create_polygon([x, y, x + dim, y, x + dim, y + dim, x, y + dim], outline='black',
                            fill='white', width=2)
 
-    font = ('Helvetica', '30', 'bold')
-
+    font = ('Helvetica', '10', 'bold')
+    
     for i, a in enumerate(actions):
         if a == 0:
             polygon.create_polygon([x + dim, y, x + dim / 2., y + dim / 2., x + dim, y + dim], outline='gray',
@@ -32,11 +32,11 @@ def draw_square_q(polygon, x, y, q, actions, dim=50):
             polygon.create_text(x + dim / 2., y + dim / 4., font=font, text="{:.3f}".format(q[i]), anchor='s')
 
 
-def draw_square_policy(w, x, y, pol, actions, dim=50):
+def draw_square_policy(w, x, y, pol, actions, dim=15):
     w.create_polygon([x, y, x + dim, y, x + dim, y + dim, x, y + dim], outline='black',
                      fill='white', width=2)
 
-    font = ('Helvetica', '30', 'bold')
+    font = ('Helvetica', '15', 'bold')
     if (hasattr(pol, "size") and pol.size > 1) or isinstance(pol, list):
         d = pol
     else:
@@ -69,7 +69,7 @@ def render_q(env, q):
     root = Tk()
     w = GUI(root)
     rows, cols = len(env.grid), max(map(len, env.grid))
-    dim = 200
+    dim = env.gridSize
     w.config(width=cols * (dim + 12), height=rows * (dim + 12))
     for s in range(env.n_states):
         r, c = env.state2coord[s]
@@ -84,7 +84,7 @@ def render_policy(env, d):
     root = Tk()
     w = GUI(root)
     rows, cols = len(env.grid), max(map(len, env.grid))
-    dim = 200
+    dim = env.gridSize
     w.config(width=cols * (dim + 12), height=rows * (dim + 12))
     for s in range(env.n_states):
         r, c = env.state2coord[s]

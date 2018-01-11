@@ -1,9 +1,11 @@
 import numpy as np
-from collections import namedtuple
-import numbers
 import gridrender as gui
-from tkinter import Tk
 import tkinter.font as tkfont
+import numbers
+import pdb
+
+from collections import namedtuple
+from tkinter import Tk
 
 MDP = namedtuple('MDP', 'S,A,P,R,gamma,d0')
 
@@ -15,7 +17,10 @@ class GridWorld:
         self.action_names = np.array(['right', 'down', 'left', 'up'])
 
         self.n_rows, self.n_cols = len(self.grid), max(map(len, self.grid))
-
+        screenHeight = 1080
+        screenWidth = 1920
+        self.gridSize = min(screenHeight/self.n_rows, screenWidth/self.n_cols)
+        
         # Create a map to translate coordinates [r,c] to scalar index
         # (i.e., state) and vice-versa
         self.coord2state = np.empty_like(self.grid, dtype=np.int)
@@ -93,14 +98,14 @@ class GridWorld:
 
 
     def show(self, state, action, next_state, reward):
-        dim = 200
+        dim = 50
         rows, cols = len(self.grid) + 0.5, max(map(len, self.grid))
         if not hasattr(self, 'window'):
             root = Tk()
             self.window = gui.GUI(root)
 
             self.window.config(width=cols * (dim + 12), height=rows * (dim + 12))
-            my_font = tkfont.Font(family="Arial", size=32, weight="bold")
+            my_font = tkfont.Font(family="Arial", size=10, weight="bold")
             for s in range(self.n_states):
                 r, c = self.state2coord[s]
                 x, y = 10 + c * (dim + 4), 10 + r * (dim + 4)
@@ -248,7 +253,7 @@ grid1 = [
 GridWorld1 = GridWorld(gamma=0.95, grid=grid1)
 
 
-def two_room_grid(room_width, room_height, doorway_pos, doorway_height, goal_height):
+def two_rooms_grid(room_width, room_height, doorway_pos, doorway_height, goal_height):
     assert doorway_height > 0
     assert doorway_pos + doorway_height <= room_height
     grid_width = 2*room_width + 1
@@ -260,14 +265,41 @@ def two_room_grid(room_width, room_height, doorway_pos, doorway_height, goal_hei
         grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,
         room_width
     ] = ''
-    grid[goal_height,grid_width-1] = 1
+    grid = grid.tolist()
+    grid[goal_height][grid_width-1] = 1
+    return byteToString(grid)
+
+def byteToString(grid):
+    n = len(grid)
+    for row in range(n):
+        m = len(grid[row])
+        for col in range(m):
+            try:
+                grid[row][col] = grid[row][col].decode('ascii')
+            except AttributeError:
+                pass
     return grid
 
+def two_rooms_computeOptions(room_width, room_height, doorway_pos, doorway_height):
+    grid_width = 2*room_width + 1
+    grid_height = room_height
+    
+    upward_initSet = np.zeros((grid_height, grid_width))
+    upward_initSet[grid_height-1-doorway_pos+doorway_height:,:room_width-1] = 1
+    
+    downward_initSet = np.zeros((grid_height, grid_width))
+    downward_initSet[:grid_height-1-doorway_pos,:room_width-1] = 1    # Includes the medial line, if there is one
+    downward_initSet[grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,room_width-1] = 0
+    
+    quitMap = np.zeros((grid_height, grid_width))
+    quitMap[grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,room_width-1] = 1
+    
+    upward_policy = np.zeros((grid_height, grid_width))
+    upward_policy[grid_height-1-doorway_pos+doorway_height:,:room_width-1] = 3
+    upward_policy[:grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,:room_width-1] = 0
 
-two_rooms_grid = [
-    ['', '', '', 1],
-    ['', 'x', '', -1],
-    ['', '', '', '']
-]
-
-GridWorld1 = GridWorld(gamma=0.95, grid=grid1)
+    downward_policy = np.zeros((grid_height, grid_width))
+    downward_policy[:grid_height-1-doorway_pos,:room_width-1] = 1
+    downward_policy[:grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,:room_width-1] = 0
+    
+    return [downward_initSet, upward_initSet, quitMap, downward_policy, upward_policy]
