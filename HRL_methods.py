@@ -4,10 +4,12 @@
 
 import numpy as np
 import operator as op
+import pdb
 
 from gridworld import *
 from anytree import Node, PreOrderIter
 from anytree.search import findall_by_attr
+from anytree.render import RenderTree
 from random import random
 
 class Option():
@@ -20,7 +22,7 @@ class Option():
 
 	def escape(self, coords):
 		r = random()
-		if self.log == 'active' and r < self.quitMap[coords]:
+		if self.log == 'active' and r < self.quitMap[coords[0],coords[1]]:
 			self.log = 'quit'
 
 
@@ -31,7 +33,7 @@ class MAXQ():
 
 		# A tree containing actions that are either primitives or options
 		if actionsHierarchy is None:
-			actionsHierarchy = Node('Root', type='option', option=self.rootOption())
+			actionsHierarchy = Node('Root', actionID = -1, type='option', option=self.rootOption())
 			actionsHierarchy.n_prim = 0
 			actionsHierarchy.n_opt = 0
 			for action in self.GridWorld.action_names:
@@ -45,18 +47,29 @@ class MAXQ():
 				self.addOption(option)
 
 		self.V = np.random.rand(self.actions.n_prim + self.actions.n_opt,self.GridWorld.n_states) 		# value function: a matrix mapping (primActionID, state) to expected value
-		self.C = np.random.rand(self.actions.n_opt + 1, self.GridWorld.n_states, self.actions.n_prim + self.actions.n_opt) 		# completion function: a matrix mapping (optionID, state, primActionID) to completion value
+		self.C = np.random.rand(self.actions.n_prim + self.actions.n_opt + 1, self.GridWorld.n_states, self.actions.n_prim + self.actions.n_opt) 		# completion function: a matrix mapping (optionID, state, primActionID) to completion value
 		self.alpha0 = alpha0		# initial learning rate. Harmonic learning function is used here
 		self.expl0 = expl0			# initial exploration rate
 		self.n_iter = n_iter
 		self.unkOptCount = 0
 
+		for pre, _, node in RenderTree(self.actions):
+			print("%s%s" % (pre, node.name))
+
 		for iter in range(self.n_iter):
 			initState = self.GridWorld.reset()
-			self.time = 0
+			self.time = 1
 			self.run(self.actions, initState)
  
-    
+
+	def learningRate(self):
+		return self.alpha0/float(self.time)
+
+
+	def explorationRate(self):
+		return self.expl0/float(self.time)   
+
+
 	def addOption(self, option):
 		# NB: right now options can only be added at init. To be generalized
 		optionName = option.name
@@ -64,66 +77,77 @@ class MAXQ():
 			self.unkOptCount += 1
 			optionName = 'Unknown Option ' + str(self.unkOptCount)
 
-		Node(optionName, parent=self.actions, actionID = self.maxActionID, type='option', option=option)
+		primActions = findall_by_attr(self.actions, value='primitive', name='type', maxlevel=2)
+
+		option = Node(optionName, parent=self.actions, actionID = self.maxActionID, type='option', option=option)
+		for action in primActions:
+			Node(action.name, parent = option, actionID = action.actionID, type='primitive')
 		self.maxActionID += 1
 		self.actions.n_opt += 1
 
+
 	def evaluate(self, task, state):
+		# print("Evaluate from {}".format(task.name))
 		if task.type == 'primitive':
 			return [self.V[task.actionID, state], task.actionID]
 		else:
 			value = {}
 			for subtask in PreOrderIter(task):
-				[value[subtask.actionID],_] = self.evaluate(subtask, state) + self.C[task.actionID, state, subtask.actionID
-			greedyAction = max(value.iteritems(), key=op.itemgetter(1))[0]
+				if subtask == task:
+					continue
+				value[subtask.actionID] = self.evaluate(subtask, state)[0] + self.C[task.actionID + 1, state, subtask.actionID]
+			greedyAction = max(zip(value.values(), value.keys()))[1]
 			return [self.V[greedyAction, state], greedyAction]
 
 
-	def learningRate(self, time):
-		return alpha/float(time)
-
-
-	def explorationRate(self):
-		return expl0/float(self.time)
-
-
 	def run(self, task, state):
+		print(task)
+		print("Run with {}".format(task.name))
 		if task.type == 'primitive':
-			[next_state, reward, absorb] = self.GridWorld.step(state, action)
-			alpha = self.learningRate(self.time)
+			print('Primitive!')
+			[next_state, reward, absorb] = self.GridWorld.step(state, task.actionID)
+			alpha = self.learningRate()
 			self.V[task.actionID, state] = (1-alpha)*self.V[task.actionID, state] + alpha*reward
 			self.time += 1
-			return 1
+			return [1, next_state, absorb]
 		elif task.type == 'option':
+			print('Option!')
 			count = 0
+			absorb = False
 			while task.option.log == 'active':
-				action = task.option.policy(self.GridWorld.state2coord[state])
-				N = self.run(action, state)
-				[next_state, reward, absorb] = self.GridWorld.step(state, action)
+				print("Time {}".format(self.time))
+				subtaskID = task.option.policy(self.GridWorld.state2coord[state])
+				subtask = findall_by_attr(self.actions, value=subtaskID, name='actionID')[0]
+				[N, next_state, absorb] = self.run(subtask, state)
 				if absorb:
 					task.option.log = 'quit'
 				[greedyValue, greedyAction] = self.evaluate(task, next_state)
-				alpha = self.rate(self.time)
-				self.C[task.actionID, state, action] = (1-alpha)*self.C[task.actionID, state, action] + alpha*np.power(self.GridWorld.gamma, N)*greedyValue
+				alpha = self.learningRate()
+				self.C[task.actionID + 1, state, subtask.actionID] = (1-alpha)*self.C[task.actionID + 1, state, subtask.actionID] + alpha*np.power(self.GridWorld.gamma, N)*greedyValue
 				count = count + N
 				state = next_state
 				task.option.escape(self.GridWorld.state2coord[state])
-			return count
+			return [count, state, absorb]
 		else:
 			raise ValueError("Action type should be either 'primitive' or 'option'")
 
 
-	def explorationPolicy(self, state):
-		Q = self.V[:, state] + np.hstack(
-			np.zeros((self.actions.n_prim,1))
-			, self.C[0, state, :]
-		)
-		greedyAction = np.argmax(Q)
+	def explorationPolicy(self, coords):
+		state = self.GridWorld.coord2state[coords[0],coords[1]]
+		Q = self.V[:, state] + self.C[0, state, :].reshape((1,self.actions.n_prim + self.actions.n_opt))
+		# Chech whether or not the options can be called from current state
+		optList = findall_by_attr(self.actions, value='options', name='type')
+		for opt in optList:
+			if not opt.option.initSet[coords]:
+				Q[opt.actionID] = 0
+
+		greedyActionID = np.argmax(Q)
+		actionID = greedyActionID
 		failed = np.random.rand(1) < self.explorationRate()
-		if failed or np.isnan(greedyAction):
-			return np.random.choice(self.GridWorld.state_actions[state])
-		else:
-			return greedyAction
+		if failed or np.isnan(greedyActionID):
+			actionID = np.random.choice(self.GridWorld.state_actions[state])
+
+		return actionID
 
 
 	def rootOption(self):
