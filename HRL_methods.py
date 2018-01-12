@@ -11,6 +11,7 @@ from anytree import Node, PreOrderIter
 from anytree.search import findall_by_attr
 from anytree.render import RenderTree
 from random import random
+from tqdm import tqdm
 
 class Option():
 	def __init__(self, initSet, policy, quitMap, name='Unknown Option'):
@@ -20,14 +21,17 @@ class Option():
 		self.log = 'active'
 		self.name = name
 
-	def escape(self, coords):
+	def escape(self, coords, debug=False):
 		r = random()
 		if self.log == 'active' and r < self.quitMap[coords[0],coords[1]]:
+			if debug:
+				print('Escape at coords ({0},{1}) with {2} succeeds'.format(coords[0], coords[1], r))
 			self.log = 'quit'
-
+		elif debug:
+			print('Escape at coords ({0},{1}) with {2} fails'.format(coords[0], coords[1], r))
 
 class MAXQ():
-	def __init__(self, GridWorld, alpha0=0.25, expl0=0.9, n_iter=5000, actionsHierarchy=None, optionSet=None):
+	def __init__(self, GridWorld, alpha0=0.25, expl0=0.9, n_iter=5000, actionsHierarchy=None, optionSet=None, debug=False):
 		self.GridWorld = GridWorld
 		self.maxActionID = 0
 
@@ -56,10 +60,10 @@ class MAXQ():
 		for pre, _, node in RenderTree(self.actions):
 			print("%s%s" % (pre, node.name))
 
-		for iter in range(self.n_iter):
+		for it in tqdm(range(self.n_iter), desc="Training MAXQ on {} runs".format(n_iter)):
 			initState = self.GridWorld.reset()
 			self.time = 1
-			self.run(self.actions, initState)
+			self.run(self.actions, initState, debug)
  
 
 	def learningRate(self):
@@ -100,25 +104,30 @@ class MAXQ():
 			return [self.V[greedyAction, state], greedyAction]
 
 
-	def run(self, task, state):
-		print(task)
-		print("Run with {}".format(task.name))
+	def run(self, task, state, debug=False):
+		if debug:
+			print("Run with {} at coords [{}, {}]".format(task.name, self.GridWorld.state2coord[state][0], self.GridWorld.state2coord[state][1]))
 		if task.type == 'primitive':
-			print('Primitive!')
+			if debug:
+				print('Primitive!')
 			[next_state, reward, absorb] = self.GridWorld.step(state, task.actionID)
 			alpha = self.learningRate()
 			self.V[task.actionID, state] = (1-alpha)*self.V[task.actionID, state] + alpha*reward
 			self.time += 1
 			return [1, next_state, absorb]
 		elif task.type == 'option':
-			print('Option!')
+			if debug:
+				print('Option!')
 			count = 0
 			absorb = False
 			while task.option.log == 'active':
-				print("Time {}".format(self.time))
+				if debug:
+					print("Time {}".format(self.time))
 				subtaskID = task.option.policy(self.GridWorld.state2coord[state])
+				if debug:
+					print("Substask chosen {}".format(subtaskID))
 				subtask = findall_by_attr(self.actions, value=subtaskID, name='actionID')[0]
-				[N, next_state, absorb] = self.run(subtask, state)
+				[N, next_state, absorb] = self.run(subtask, state, debug)
 				if absorb:
 					task.option.log = 'quit'
 				[greedyValue, greedyAction] = self.evaluate(task, next_state)
@@ -136,11 +145,17 @@ class MAXQ():
 		state = self.GridWorld.coord2state[coords[0],coords[1]]
 		Q = self.V[:, state] + self.C[0, state, :].reshape((1,self.actions.n_prim + self.actions.n_opt))
 		# Chech whether or not the options can be called from current state
-		optList = findall_by_attr(self.actions, value='options', name='type')
-		for opt in optList:
-			if not opt.option.initSet[coords]:
-				Q[opt.actionID] = 0
+		optList = findall_by_attr(self.actions, value='option', name='type')
 
+		for opt in optList:
+			if not opt.option.initSet[coords[0], coords[1]]:
+				Q[0,opt.actionID] = 0
+
+		adm_actionSet = np.hstack((np.zeros((1,self.actions.n_prim)),np.ones((1,self.actions.n_opt))))
+		for actionID in self.GridWorld.state_actions[state]:
+			adm_actionSet[0,actionID] = 1
+
+		Q = Q*adm_actionSet
 		greedyActionID = np.argmax(Q)
 		actionID = greedyActionID
 		failed = np.random.rand(1) < self.explorationRate()
@@ -154,3 +169,8 @@ class MAXQ():
 		initSet = np.ones((self.GridWorld.n_rows, self.GridWorld.n_cols))
 		quitMap = np.zeros((self.GridWorld.n_rows, self.GridWorld.n_cols))
 		return Option(initSet, self.explorationPolicy, quitMap, name='Root Option')
+
+
+	def computeGreedyPolicy(self):
+		Q = self.V + np.swapaxes(self.C[0, :, :].reshape((1,self.actions.n_prim + self.actions.n_opt)),0,1)
+		self.policy = np.argmax(Q, axis=0)

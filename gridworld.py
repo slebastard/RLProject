@@ -285,21 +285,20 @@ def two_rooms_computeOptions(room_width, room_height, doorway_pos, doorway_heigh
     grid_height = room_height
     
     upward_initSet = np.zeros((grid_height, grid_width))
-    upward_initSet[grid_height-1-doorway_pos+doorway_height:,:room_width-1] = 1
+    upward_initSet[grid_height-1-doorway_pos:,:room_width] = 1
     
     downward_initSet = np.zeros((grid_height, grid_width))
-    downward_initSet[:grid_height-1-doorway_pos,:room_width-1] = 1    # Includes the medial line, if there is one
-    downward_initSet[grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,room_width-1] = 0
+    downward_initSet[:grid_height-doorway_pos,:room_width] = 1    # Includes the medial line, if there is one
     
     quitMap = np.zeros((grid_height, grid_width))
-    quitMap[grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,room_width-1] = 1
+    quitMap[grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,room_width] = 1
     
     upward_policy = np.zeros((grid_height, grid_width))
-    upward_policy[grid_height-1-doorway_pos+doorway_height:,:room_width-1] = 3
-    upward_policy[:grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,:room_width-1] = 0
+    upward_policy[grid_height-1-doorway_pos+doorway_height:,:room_width] = 3
+    upward_policy[grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,:room_width+1] = 0
 
     downward_policy = np.zeros((grid_height, grid_width))
-    downward_policy[:grid_height-1-doorway_pos,:room_width-1] = 1
-    downward_policy[:grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,:room_width-1] = 0
+    downward_policy[:grid_height-1-doorway_pos,:room_width] = 1
+    downward_policy[grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,:room_width+1] = 0
     
     return [downward_initSet, upward_initSet, quitMap, downward_policy, upward_policy]
