@@ -11,7 +11,11 @@ MDP = namedtuple('MDP', 'S,A,P,R,gamma,d0')
 
 
 class GridWorld:
-    def __init__(self, gamma=0.95, grid=None, render=False):
+    def __init__(self, gamma=0.95, grid=None, render=False, reset_density = None):
+        '''
+            Tristan adds: reset_density
+                If not None it has the dimension of the grid and specify the proba distrib for resetting. 
+        '''
         self.grid = grid
 
         self.action_names = np.array(['right', 'down', 'left', 'up'])
@@ -40,6 +44,15 @@ class GridWorld:
         self.gamma = gamma
         self.proba_succ = 0.9
         self.render = render
+        
+        
+        if type(reset_density) == type(None):
+            reset_density = 1/(self.n_rows*self.n_cols)*np.ones(self.coord2state.shape)
+        
+        self.reset_density = []
+        for s in range(self.n_states):
+            i,j = self.state2coord[s]
+            self.reset_density.append(reset_density[i][j])
 
 
     def reset(self):
@@ -48,7 +61,9 @@ class GridWorld:
             An initial state randomly drawn from
             the initial distribution
         """
-        x_0 = np.random.randint(0, self.n_states)
+        #x_0 = np.random.randint(0, self.n_states)
+        
+        x_0 = np.random.choice(range(self.n_states),p=self.reset_density)
         return x_0
 
 
