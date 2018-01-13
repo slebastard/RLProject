@@ -110,8 +110,9 @@ class PolicyLearning:
         else:
             return 1/(trajCount)
         
-    def run(self, optValue=None):
+    def run(self, optValue=None, record_trajectory = []):
         """Runs the estimation based on GridWorld, policy and max_iter"""
+        """ Tristan adds: record_trajectory in order to compute the DDs for option discovery """
         self.counter = np.zeros((self.GridWorld.n_states,len(self.GridWorld.action_names)))
         self.cumReward = np.zeros((self.max_iter))
         for time in range(self.max_iter):
@@ -125,10 +126,15 @@ class PolicyLearning:
                 self.SAV[:,:,time] = self.SAV[:,:,time-1]
                 self.cumReward[time] = self.cumReward[time-1]
             
+            record_trajectory.append([])
+            
             while not term:      
                 action = self.explPol(state,time)
                 self.counter[state,action] += 1
                 [newState,r,term] = self.GridWorld.step(state,action)
+                
+                record_trajectory[-1].append((state,action,r))
+                
                 rew += r
                 tempDiff = r + self.GridWorld.gamma * max(self.SAV[newState,:,time]) - self.SAV[state,action,time]
                 self.SAV[state,action,time] = self.SAV[state,action,time] + self.learningRate(state,action)*tempDiff
