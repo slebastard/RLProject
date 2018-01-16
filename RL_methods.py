@@ -114,18 +114,21 @@ class PolicyLearning:
         """Runs the estimation based on GridWorld, policy and max_iter"""
         self.counter = np.zeros((self.GridWorld.n_states,len(self.GridWorld.action_names)))
         self.cumReward = np.zeros((self.max_iter))
+        self.timeLog = []
         for time in range(self.max_iter):
             # For each new trajectory, we start by computing a new initial state
             initState = self.GridWorld.reset() #Return state ID of random initial state
             term = False
             state = initState
             rew = 0
+            iterToEnd = 0
             
             if time > 0:
                 self.SAV[:,:,time] = self.SAV[:,:,time-1]
                 self.cumReward[time] = self.cumReward[time-1]
             
-            while not term:      
+            while not term:
+                iterToEnd += 1      
                 action = self.explPol(state,time)
                 self.counter[state,action] += 1
                 [newState,r,term] = self.GridWorld.step(state,action)
@@ -136,6 +139,7 @@ class PolicyLearning:
             
             self.value[:,time] = np.max(self.SAV[:,:,time],axis=1)
             self.cumReward[time] += rew
+            self.timeLog.append(iterToEnd)
         
         if optValue is not None:
             self.maxValueError = np.max(np.abs(self.value - optValue.reshape((self.GridWorld.n_states,1))), axis=0)

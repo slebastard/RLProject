@@ -4,6 +4,7 @@
 
 import numpy as np
 import operator as op
+import gridrender as gui
 import pdb
 
 from gridworld import *
@@ -60,10 +61,15 @@ class MAXQ():
 		for pre, _, node in RenderTree(self.actions):
 			print("%s%s" % (pre, node.name))
 
+		self.timeLog = []
+
 		for it in tqdm(range(self.n_iter), desc="Training MAXQ on {} runs".format(n_iter)):
 			initState = self.GridWorld.reset()
 			self.time = 1
 			self.run(self.actions, initState, debug)
+			self.timeLog.append(self.time)
+
+		self.computeGreedyPolicy()
  
 
 	def learningRate(self):
@@ -71,7 +77,8 @@ class MAXQ():
 
 
 	def explorationRate(self):
-		return self.expl0/float(self.time)   
+		# return self.expl0/float(self.time)   
+		return self.expl0
 
 
 	def addOption(self, option):
@@ -172,5 +179,13 @@ class MAXQ():
 
 
 	def computeGreedyPolicy(self):
-		Q = self.V + np.swapaxes(self.C[0, :, :].reshape((1,self.actions.n_prim + self.actions.n_opt)),0,1)
-		self.policy = np.argmax(Q, axis=0)
+		self.Q = self.V + np.swapaxes(self.C[0, :, :],0,1).reshape((self.actions.n_prim + self.actions.n_opt, self.GridWorld.n_states))
+		self.policy = np.argmax(self.Q, axis=0)
+
+
+	def render(self):
+		"""Renders the Q-function and policy learned"""
+		if self.Q is None:
+			self.Q = self.V + np.swapaxes(self.C[0, :, :],0,1).reshape((self.actions.n_prim + self.actions.n_opt, self.GridWorld.n_states))
+		gui.render_q(self.GridWorld, self.Q) 			# Need a way to include options
+		gui.render_policy(self.GridWorld, self.policy)	# Need a way to include options

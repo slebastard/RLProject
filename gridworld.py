@@ -269,6 +269,38 @@ def two_rooms_grid(room_width, room_height, doorway_pos, doorway_height, goal_he
     grid[goal_height][grid_width-1] = 1
     return byteToString(grid)
 
+
+def four_rooms_grid(room_width, room_height, doorway_pos_v, doorway_pov_h, doorway_height, goal_width, goal_height):
+    assert doorway_height > 0
+    assert doorway_pos_w + doorway_height <= room_width
+    assert doorway_pos_h + doorway_height <= room_height
+    grid_width = 2*room_width + 1
+    grid_height = 2*room_height + 1
+    grid = np.chararray((grid_height, grid_width))
+    grid[:] = ''
+    grid[:,room_width] = 'x'
+    grid[:,room_height] = 'x'
+    grid[
+        room_height-1-doorway_pos_h:grid_height-1-doorway_pos_h+doorway_height,
+        room_width
+    ] = ''
+    grid[
+        room_height+1+doorway_pos_h-doorway_height:room_height+1+doorway_pos_h,
+        room_width
+    ] = ''
+    grid[
+        room_height,
+        room_width-1-doorway_pos_w:grid_width-1-doorway_pos_w+doorway_width
+    ] = ''
+    grid[
+        room_height,
+        room_width+1+doorway_pos_w-doorway_width:room_width+1+doorway_pos_w,
+    ] = ''
+    grid = grid.tolist()
+    grid[goal_height][goal_width] = 1
+    return byteToString(grid)
+
+
 def byteToString(grid):
     n = len(grid)
     for row in range(n):
@@ -279,6 +311,7 @@ def byteToString(grid):
             except AttributeError:
                 pass
     return grid
+
 
 def two_rooms_computeOptions(room_width, room_height, doorway_pos, doorway_height):
     grid_width = 2*room_width + 1
