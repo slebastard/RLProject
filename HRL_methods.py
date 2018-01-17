@@ -1,7 +1,3 @@
-# ToDo:
-### Create tree structure for storing hierarchy of actions
-### Create evaluate() method for finding the value of subtask m in state s
-
 import numpy as np
 import operator as op
 import gridrender as gui
@@ -15,10 +11,13 @@ from random import random
 from tqdm import tqdm
 
 class Option():
-	def __init__(self, initSet, policy, quitMap, name='Unknown Option'):
+	def __init__(self, initSet, policy, quitMap, conceptState = None, name='Unknown Option'):
 		self.initSet = initSet
 		self.policy = policy
 		self.quitMap = quitMap
+		if conceptState is not None:
+			self.conceptState = conceptState
+		self.quitState
 		self.log = 'active'
 		self.name = name
 
@@ -32,7 +31,7 @@ class Option():
 			print('Escape at coords ({0},{1}) with {2} fails'.format(coords[0], coords[1], r))
 
 class MAXQ():
-	def __init__(self, GridWorld, alpha0=0.25, expl0=0.9, n_iter=5000, actionsHierarchy=None, optionSet=None, debug=False):
+	def __init__(self, GridWorld, alpha0=0.25, expl0=0.9, n_iter=5000, actionsHierarchy=None, optionSet=None, debug=False, runOnCreate=True):
 		self.GridWorld = GridWorld
 		self.maxActionID = 0
 
@@ -64,15 +63,16 @@ class MAXQ():
 		self.timeLog = []
 		self.log = [[]]
 
-		for it in tqdm(range(self.n_iter), desc="Training MAXQ on {} runs".format(n_iter)):
-			self.it = it
-			initState = self.GridWorld.reset()
-			self.actions.option.log = 'active'
-			self.time = 1
-			self.run(self.actions, initState, debug, history=True)
-			self.timeLog.append(self.time)
+		if runOnCreate:
+			for it in tqdm(range(self.n_iter), desc="Training MAXQ on {} runs".format(n_iter)):
+				self.it = it
+				initState = self.GridWorld.reset()
+				self.actions.option.log = 'active'
+				self.time = 1
+				self.run(self.actions, initState, debug, history=True)
+				self.timeLog.append(self.time)
 
-		self.computeGreedyPolicy()
+			self.computeGreedyPolicy()
  
 
 	def learningRate(self):
@@ -116,7 +116,7 @@ class MAXQ():
 
 	def run(self, task, state, debug=False, history=False):
 		if history:
-			self.log.append([self.it, self.time, self.GridWorld.state2coord[state], task])
+			self.log.append([self.it, self.time, state, task.actionID])
 		if debug:
 			print("Run with {} at coords [{}, {}]".format(task.name, self.GridWorld.state2coord[state][0], self.GridWorld.state2coord[state][1]))
 		if task.type == 'primitive':

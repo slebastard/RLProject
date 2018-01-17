@@ -254,6 +254,14 @@ class GridWorld:
 
                     self.state_actions.append(actions)
 
+
+    def static_filter(state, dist_to_goal=4):
+        # Returns a vector of boolean indicating, one for each state of trajectory
+        objective = np.argwhere(array(twoRooms.grid) == '1').ravel()
+        coords = np.array(self.state2coord)[state]
+        return np.linalg.norm(objective-coords) >= dist_to_goal
+
+
 # What does a grid look like?
 # Permitted locations are ''
 # Unavailable locations are 'x'
@@ -349,3 +357,4 @@ def two_rooms_computeOptions(room_width, room_height, doorway_pos, doorway_heigh
     downward_policy[grid_height-1-doorway_pos:grid_height-1-doorway_pos+doorway_height,:room_width+1] = 0
     
     return [downward_initSet, upward_initSet, quitMap, downward_policy, upward_policy]
+
