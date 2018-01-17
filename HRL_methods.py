@@ -62,11 +62,14 @@ class MAXQ():
 			print("%s%s" % (pre, node.name))
 
 		self.timeLog = []
+		self.log = [[]]
 
 		for it in tqdm(range(self.n_iter), desc="Training MAXQ on {} runs".format(n_iter)):
+			self.it = it
 			initState = self.GridWorld.reset()
+			self.actions.option.log = 'active'
 			self.time = 1
-			self.run(self.actions, initState, debug)
+			self.run(self.actions, initState, debug, history=True)
 			self.timeLog.append(self.time)
 
 		self.computeGreedyPolicy()
@@ -111,7 +114,9 @@ class MAXQ():
 			return [self.V[greedyAction, state], greedyAction]
 
 
-	def run(self, task, state, debug=False):
+	def run(self, task, state, debug=False, history=False):
+		if history:
+			self.log.append([self.it, self.time, self.GridWorld.state2coord[state], task])
 		if debug:
 			print("Run with {} at coords [{}, {}]".format(task.name, self.GridWorld.state2coord[state][0], self.GridWorld.state2coord[state][1]))
 		if task.type == 'primitive':
@@ -125,16 +130,17 @@ class MAXQ():
 		elif task.type == 'option':
 			if debug:
 				print('Option!')
+				pdb.set_trace()
 			count = 0
 			absorb = False
-			while task.option.log == 'active':
+			while task.option.log == 'active':					
 				if debug:
 					print("Time {}".format(self.time))
 				subtaskID = task.option.policy(self.GridWorld.state2coord[state])
 				if debug:
 					print("Substask chosen {}".format(subtaskID))
 				subtask = findall_by_attr(self.actions, value=subtaskID, name='actionID')[0]
-				[N, next_state, absorb] = self.run(subtask, state, debug)
+				[N, next_state, absorb] = self.run(subtask, state, debug, history)
 				if absorb:
 					task.option.log = 'quit'
 				[greedyValue, greedyAction] = self.evaluate(task, next_state)
@@ -161,6 +167,7 @@ class MAXQ():
 		adm_actionSet = np.hstack((np.zeros((1,self.actions.n_prim)),np.ones((1,self.actions.n_opt))))
 		for actionID in self.GridWorld.state_actions[state]:
 			adm_actionSet[0,actionID] = 1
+
 
 		Q = Q*adm_actionSet
 		greedyActionID = np.argmax(Q)

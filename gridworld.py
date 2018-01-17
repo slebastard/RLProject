@@ -47,7 +47,7 @@ class GridWorld:
         
         
         if type(reset_density) == type(None):
-            reset_density = 1/(self.n_rows*self.n_cols)*np.ones(self.coord2state.shape)
+            reset_density = 1.0/(self.n_states)*np.ones(self.coord2state.shape)
         
         self.reset_density = []
         for s in range(self.n_states):
@@ -62,7 +62,6 @@ class GridWorld:
             the initial distribution
         """
         #x_0 = np.random.randint(0, self.n_states)
-        
         x_0 = np.random.choice(range(self.n_states),p=self.reset_density)
         return x_0
 
@@ -285,18 +284,18 @@ def two_rooms_grid(room_width, room_height, doorway_pos, doorway_height, goal_he
     return byteToString(grid)
 
 
-def four_rooms_grid(room_width, room_height, doorway_pos_v, doorway_pov_h, doorway_height, goal_width, goal_height):
+def four_rooms_grid(room_width, room_height, doorway_pos_v, doorway_pos_h, doorway_height, goal_width, goal_height):
     assert doorway_height > 0
-    assert doorway_pos_w + doorway_height <= room_width
+    assert doorway_pos_v + doorway_height <= room_width
     assert doorway_pos_h + doorway_height <= room_height
     grid_width = 2*room_width + 1
     grid_height = 2*room_height + 1
     grid = np.chararray((grid_height, grid_width))
     grid[:] = ''
     grid[:,room_width] = 'x'
-    grid[:,room_height] = 'x'
+    grid[room_height,:] = 'x'
     grid[
-        room_height-1-doorway_pos_h:grid_height-1-doorway_pos_h+doorway_height,
+        room_height-1-doorway_pos_h:room_height-1-doorway_pos_h+doorway_height,
         room_width
     ] = ''
     grid[
@@ -305,11 +304,11 @@ def four_rooms_grid(room_width, room_height, doorway_pos_v, doorway_pov_h, doorw
     ] = ''
     grid[
         room_height,
-        room_width-1-doorway_pos_w:grid_width-1-doorway_pos_w+doorway_width
+        room_width-1-doorway_pos_v:room_width-1-doorway_pos_v+doorway_height
     ] = ''
     grid[
         room_height,
-        room_width+1+doorway_pos_w-doorway_width:room_width+1+doorway_pos_w,
+        room_width+1+doorway_pos_v-doorway_height:room_width+1+doorway_pos_v,
     ] = ''
     grid = grid.tolist()
     grid[goal_height][goal_width] = 1

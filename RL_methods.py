@@ -127,15 +127,12 @@ class PolicyLearning:
             if time > 0:
                 self.SAV[:,:,time] = self.SAV[:,:,time-1]
                 self.cumReward[time] = self.cumReward[time-1]
-            
-<<<<<<< HEAD
-            while not term:
-                iterToEnd += 1      
-=======
+
+
             record_trajectory.append([])
             
-            while not term:      
->>>>>>> 7452eb392e74afb623937484d253453c55563438
+            while not term:
+                iterToEnd += 1      
                 action = self.explPol(state,time)
                 self.counter[state,action] += 1
                 [newState,r,term] = self.GridWorld.step(state,action)
