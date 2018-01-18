@@ -56,6 +56,7 @@ class MAXQ():
 		self.expl0 = expl0			# initial exploration rate
 		self.n_iter = n_iter
 		self.unkOptCount = 0
+		self.lastTraj = []
 
 		for pre, _, node in RenderTree(self.actions):
 			print("%s%s" % (pre, node.name))
@@ -65,6 +66,7 @@ class MAXQ():
 
 		if runOnCreate:
 			for it in tqdm(range(self.n_iter), desc="Training MAXQ on {} runs".format(n_iter)):
+				self.lastTraj = []
 				self.it = it
 				initState = self.GridWorld.reset()
 				self.actions.option.log = 'active'
@@ -101,7 +103,7 @@ class MAXQ():
 
 
 	def evaluate(self, task, state):
-		# print("Evaluate from {}".format(task.name))
+		# print("Evaluate fr3om {}".format(task.name))
 		if task.type == 'primitive':
 			return [self.V[task.actionID, state], task.actionID]
 		else:
@@ -126,6 +128,7 @@ class MAXQ():
 			alpha = self.learningRate()
 			self.V[task.actionID, state] = (1-alpha)*self.V[task.actionID, state] + alpha*reward
 			self.time += 1
+			self.lastTraj.append(state)
 			return [1, next_state, absorb]
 		elif task.type == 'option':
 			if debug:
@@ -153,6 +156,20 @@ class MAXQ():
 		else:
 			raise ValueError("Action type should be either 'primitive' or 'option'")
 
+
+	def learn(self, n_iter=500):
+		self.n_iter = n_iter
+		self.lastTraj = []
+		for it in tqdm(range(self.n_iter), desc="Training MAXQ on {} runs".format(n_iter)):
+				self.lastTraj = []
+				self.it = it
+				initState = self.GridWorld.reset()
+				self.actions.option.log = 'active'
+				self.time = 1
+				self.run(self.actions, initState, debug, history=True)
+				self.timeLog.append(self.time)
+
+			self.computeGreedyPolicy()
 
 	def explorationPolicy(self, coords):
 		state = self.GridWorld.coord2state[coords[0],coords[1]]

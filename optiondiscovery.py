@@ -30,12 +30,21 @@ class OptionDiscovery():
 
 
 	def run(self, coords, debug=False):
+
+		# Initialize enough trajectories to cross out erroneous concepts on the first runs
+		n_init = 20
+		for it in range(n_init):
+			initState = self.GridWorld.reset()
+			self.MAXQ.actions.option.log = 'active'
+			self.MAXQ.time = 1
+			self.MAXQ.run(self.MAXQ.actions, initState, debug, history=True)
+			self.trajectories.append(filter(self.MAXQ.lastTraj))
+
 		for it in tqdm(range(self.n_iter), desc="Discovering options on {} runs".format(n_iter)):
 			initState = self.GridWorld.reset()
 			self.MAXQ.actions.option.log = 'active'
 			self.MAXQ.time = 1
-			self.MAXQ.run()
-			self.run(self.MAXQ.actions, initState, debug, history=True)
+			self.MAXQ.run(self.MAXQ.actions, initState, debug, history=True)
 			self.trajectories.append(filter(self.MAXQ.lastTraj))
 
 			DD_map = self.get_DD_map()
@@ -43,14 +52,16 @@ class OptionDiscovery():
 
 			conceptList = findall_by_attr(self.MAXQ.actions, value='option', name='type')
 			if self.importance[newConcept] > self.theta and not findall_by_attr(self.MAXQ.actions, value=conceptList, name='conceptState'):
+				self.importance[newConcept] += 1
 				self.makeOption(newConcept)
 				# ↑ This will compute I, beta and pi
 				# create the option using option = Option() class constructor
 				# then add the option to MAXQ instance by using self.MAXQ.addOption(option)
 
 			elif self.importance[newConcept] > self.theta:
+				self.importance[newConcept] += 1
 				option = findall_by_attr(self.MAXQ.actions, value=conceptList, name='conceptState')[0]
-				self.updateOption(option)
+				self.updateOption(option, option.conceptState)
 				# ↑ This will update I and pi using the new trajectory
 				# Note that I may need to be broadened over time
 
@@ -78,6 +89,46 @@ class OptionDiscovery():
 	def makeOption(self, state):
 		"""Computes a new option ending in state based on saved trajectories"""
 
+		#1) Find all trajectories that crossed the concept state
+		trajectories = get_trajectory_set(self.trajectories, state)
 
-	def updateOption(self, option):
+		#2) For each state on the union of trajectories, compute the value function as the mean of discount rate power time to goal
+		value = np.zeros(self.GridWorld.n_states)
+		n_visit = np.zeros(self.GridWorld.n_states)
+		initSet = np.zeros((self.GridWorld.n_rows; self.GridWorld.n_cols))
+
+		for traj in trajectories:
+		time_to_goal = 0
+			for step in reversed(traj):
+				initSet[self.GridWorld.state2coord[step][0], self.GridWorld.state2coord[step][1]] = 1
+				value[step] = float(np.power(self.GridWorld.gamma,time_to_goal))/(1+n_visit[step]) + float(value[step])/(1+n_visit[step])
+				n_visit[step] += 1
+				time_to_goal += 1
+
+		#3) Compute greedy policy 
+		policy = np.argmax(value)
+
+		#4) Create action
+		quitMap = np.zeros((self.GridWorld.n_rows, self.GridWorld.n_cols))
+		option = Option(initSet, policy, quitMap, conceptState = state, name='Unknown Option')
+		option.value = value
+		option.n_visit = n_visit
+		self.MAXQ.addOption(option)
+
+	def updateOption(self, option, state):
 		"""Updates option based on the last trajectory"""
+		trajectory = get_trajectory_set(self.MAXQ.lastTraj, state)[0]
+		time_to_goal = 0
+		for step in reversed(trajectory):
+			option.initSet[self.GridWorld.state2coord[step][0], self.GridWorld.state2coord[step][1]] = 1
+			option.value[step] = float(np.power(self.GridWorld.gamma,time_to_goal))/(1+option.n_visit[step]) + float(option.value[step])/(1+option.n_visit[step])
+			option.n_visit[step] += 1
+			time_to_goal += 1
+
+
+def get_truncated_trajectories(trajectories, state):
+	"""Finds all past trajectories containing state and truncates them until fist visit of state"""
+	traj_toConcept = [[]]
+	for traj in trajectories:
+		if state in traj:
+			traj_toConcept.append(traj[:traj.index(state)+1])
