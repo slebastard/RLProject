@@ -68,7 +68,6 @@ class MAXQ():
 
 		self.timeLog = []
 		self.log = [[]]
-
 		if runOnCreate:
 			for it in tqdm(range(self.n_iter), desc="Training MAXQ on {} runs".format(n_iter)):
 				self.lastTraj = []
@@ -122,7 +121,7 @@ class MAXQ():
 
 	def run(self, task, state, debug=False, history=False):
 		if history:
-			self.log.append([self.it, self.time, state, task.actionID])
+			self.log.append([self.time, state, task.actionID])
 		if debug:
 			print("Run with {} at coords [{}, {}]".format(self.treeLog + task.name, self.GridWorld.state2coord[state][0], self.GridWorld.state2coord[state][1]))
 		if task.type == 'primitive':

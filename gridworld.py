@@ -11,10 +11,16 @@ MDP = namedtuple('MDP', 'S,A,P,R,gamma,d0')
 
 
 class GridWorld:
-    def __init__(self, gamma=0.95, grid=None, render=False, reset_density = None):
+    def __init__(self, static_filter, gamma=0.95, grid=None, render=False, reset_density = None):
         '''
             Tristan adds: reset_density
                 If not None it has the dimension of the grid and specify the proba distrib for resetting. 
+            Tristan adds: static_filter
+            Should of the form:
+                def static_filter(s,dist_to_goal=4):
+                    objective = np.array([0,len(twoRooms_grid[0])-1])
+                    coord_s = np.array(twoRooms.state2coord[s])
+                    return np.linalg.norm(objective-coord_s) >= dist_to_goal
         '''
         self.grid = grid
 
@@ -45,6 +51,7 @@ class GridWorld:
         self.proba_succ = 0.9
         self.render = render
         
+        self.static_filter = static_filter
         
         if type(reset_density) == type(None):
             reset_density = 1.0/(self.n_states)*np.ones(self.coord2state.shape)
