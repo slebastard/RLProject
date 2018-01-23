@@ -84,12 +84,11 @@ class MAXQ():
  
 
 	def learningRate(self):
-		return self.alpha0/float(self.time)
+		return self.alpha0/float(1+self.it)
 
 
 	def explorationRate(self):
-		return max(0,self.expl0 + (float(self.time)/2000)*(self.explf - self.expl0))
-
+		return self.expl0 + max((self.n_iter-2*(self.it+1))/self.n_iter,0)*(self.explf - self.expl0)
 
 	def addOption(self, option):
 		# NB: right now options can only be added at init. To be generalized
