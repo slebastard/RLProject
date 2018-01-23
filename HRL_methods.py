@@ -30,7 +30,7 @@ class Option():
 			print('Escape at coords ({0},{1}) with {2} fails'.format(coords[0], coords[1], r))
 
 class MAXQ():
-	def __init__(self, GridWorld, alpha0=0.25, expl0=0.9, n_iter=5000, actionsHierarchy=None, optionSet=None, debug=False, runOnCreate=True):
+	def __init__(self, GridWorld, expl0=0.9, n_iter=5000, actionsHierarchy=None, optionSet=None, debug=False, runOnCreate=True):
 		self.GridWorld = GridWorld
 		self.maxActionID = 0
 
@@ -51,15 +51,26 @@ class MAXQ():
 
 		# self.V = np.random.rand(self.actions.n_prim + self.actions.n_opt,self.GridWorld.n_states) 		# value function: a matrix mapping (primActionID, state) to expected value
 		self.V = np.zeros((self.actions.n_prim + self.actions.n_opt,self.GridWorld.n_states))
+		
+		### Initializing self.C ###
 		# self.C = np.random.rand(self.actions.n_prim + self.actions.n_opt + 1, self.GridWorld.n_states, self.actions.n_prim + self.actions.n_opt) 		# completion function: a matrix mapping (optionID, state, primActionID) to completion value
 		self.C = np.zeros((self.actions.n_prim + self.actions.n_opt + 1, self.GridWorld.n_states, self.actions.n_prim + self.actions.n_opt))
 
-		self.alpha0 = alpha0		# initial learning rate. Harmonic learning function is used here
+		optList = findall(self.actions, lambda node: node.type == 'option' and node.actionID >= 0)
+		for opt in optList:
+			for state in range(self.GridWorld.n_states):
+				coords = self.GridWorld.state2coord[state]
+				if opt.option.initSet[coords[0], coords[1]]:
+					self.C[0,state,opt.actionID] = 1
+
+		############################
+
 		self.expl0 = expl0			# initial exploration rate
-		self.explf = 0.1
+		self.explf = 0
 		self.n_iter = n_iter
 		self.unkOptCount = 0
 		self.lastTraj = []
+		self.counter = np.zeros((self.GridWorld.n_states, self.actions.n_opt + self.actions.n_prim))
 		self.trajLog = []
 		self.treeLog = ''
 
@@ -82,8 +93,12 @@ class MAXQ():
 			self.computeGreedyPolicy()
  
 
-	def learningRate(self):
-		return self.alpha0/float(1+self.it)
+	def learningRate(self, state, actionID):
+		trajCount = self.counter[state, actionID]
+		if trajCount == 0:
+			return 1
+		else:
+			return 1/(trajCount)
 
 
 	def explorationRate(self):
@@ -124,12 +139,15 @@ class MAXQ():
 			self.log.append([self.time, state, task.actionID])
 		if debug:
 			print("Run with {} at coords [{}, {}]".format(self.treeLog + task.name, self.GridWorld.state2coord[state][0], self.GridWorld.state2coord[state][1]))
+		self.counter[state,task.actionID] += 1
 		if task.type == 'primitive':
 			if debug:
 				print('Primitive!')
 			[next_state, reward, absorb] = self.GridWorld.step(state, task.actionID)
-			alpha = self.learningRate()
-			self.V[task.actionID, state] = (1-alpha)*self.V[task.actionID, state] + alpha*reward
+			alpha = self.learningRate(state, task.actionID)
+			# self.V[task.actionID, state] = (1-alpha)*self.V[task.actionID, state] + alpha*reward
+			tempDiff = reward + self.GridWorld.gamma * max(self.V[:,next_state]) - self.V[task.actionID,state]
+			self.V[task.actionID,state] = self.V[task.actionID,state] + alpha*tempDiff
 			self.time += 1
 			self.lastTraj.append([state, reward, absorb])
 			return [1, next_state, absorb]
@@ -152,8 +170,9 @@ class MAXQ():
 				if absorb:
 					task.option.log = 'quit'
 				[greedyValue, greedyAction] = self.evaluate(task, next_state)
-				alpha = self.learningRate()
+				alpha = self.learningRate(state, task.actionID)
 				self.C[task.actionID + 1, state, subtask.actionID] = (1-alpha)*self.C[task.actionID + 1, state, subtask.actionID] + alpha*np.power(self.GridWorld.gamma, N)*greedyValue
+				
 				count = count + N
 				state = next_state
 				task.option.escape(self.GridWorld.state2coord[state])
@@ -181,7 +200,7 @@ class MAXQ():
 			if actionID not in self.GridWorld.state_actions[state]:
 				Q[0,actionID] = -1
 		
-		greedyActionID = np.argmax(Q + 0.005*np.random.rand(Q.shape[0], Q.shape[1]))
+		greedyActionID = np.argmax(Q + 0.00000005*np.random.rand(Q.shape[0], Q.shape[1]))
 		actionID = greedyActionID
 		failed = np.random.rand(1) < self.explorationRate()
 		if failed or np.isnan(greedyActionID):
@@ -197,7 +216,13 @@ class MAXQ():
 
 
 	def computeGreedyPolicy(self):
+
+		# adm_actionSet = np.hstack((np.zeros((1,self.actions.n_prim)),np.ones((1,self.actions.n_opt))))
+		# for actionID in self.GridWorld.state_actions[state]:
+		# 	adm_actionSet[0,actionID] = 1
+
 		self.Q = self.V + np.swapaxes(self.C[0, :, :],0,1).reshape((self.actions.n_prim + self.actions.n_opt, self.GridWorld.n_states))
+
 		self.policy = np.argmax(self.Q, axis=0)
 
 

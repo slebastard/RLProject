@@ -11,7 +11,7 @@ MDP = namedtuple('MDP', 'S,A,P,R,gamma,d0')
 
 
 class GridWorld:
-    def __init__(self, static_filter, gamma=0.95, grid=None, render=False, reset_density = None):
+    def __init__(self, static_filter = lambda x: True, gamma=0.95, grid=None, render=False, reset_density = None):
         '''
             Tristan adds: reset_density
                 If not None it has the dimension of the grid and specify the proba distrib for resetting. 
