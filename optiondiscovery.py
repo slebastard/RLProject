@@ -115,6 +115,7 @@ class OptionDiscovery():
 		option.n_visit = n_visit
 		self.MAXQ.addOption(option)
 
+
 	def updateOption(self, option, state):
 		"""Updates option based on the last trajectory"""
 		trajectory = get_trajectory_set(self.MAXQ.lastTraj, state)[0]

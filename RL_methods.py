@@ -10,6 +10,7 @@ class ValueLearning:
         self.policy = policy
         
         self.trajRewards = np.zeros((self.GridWorld.n_states,np.size(self.GridWorld.action_names),self.max_iter))
+        self.trajLog = []
         self.SAV = np.zeros((self.GridWorld.n_states,np.size(self.GridWorld.action_names),self.max_iter))
         self.V = np.zeros((self.GridWorld.n_states,self.max_iter))
         self.J = np.zeros((self.max_iter))
@@ -23,6 +24,7 @@ class ValueLearning:
             for a0 in self.GridWorld.state_actions[x0]:
                 cumRew = 0
                 term = False
+                traj = []
                 
                 [x,r,term] = self.GridWorld.step(x0,a0)
                 cumRew = r
@@ -30,10 +32,11 @@ class ValueLearning:
                 step = 1
                 while not term:
                     [x,r,term] = self.GridWorld.step(x,self.policy(x,self.GridWorld))
+                    traj.append([x,r,term])
                     cumRew = cumRew + np.power(self.GridWorld.gamma,step)*r
                     step += 1
                 self.trajRewards[x0,a0,ind] = cumRew
-                
+                self.trajLog.append(traj)
                 
             for x in range(self.GridWorld.n_states):
                 for a in range(len(self.GridWorld.action_names)):
@@ -81,6 +84,7 @@ class PolicyLearning:
         self.min_exploration = 0.1
         
         self.trajRewards = np.zeros((self.GridWorld.n_states,np.size(self.GridWorld.action_names),self.max_iter))
+        self.trajLog = []
         # We must make sure the unreachable states always have a lower Q-value than the worst case scenario estimate
         # for that the exploration policy estimation to work
         self.SAV = np.zeros((self.GridWorld.n_states,np.size(self.GridWorld.action_names),self.max_iter))
@@ -123,7 +127,8 @@ class PolicyLearning:
             state = initState
             rew = 0
             iterToEnd = 0
-            
+            traj = []
+
             if time > 0:
                 self.SAV[:,:,time] = self.SAV[:,:,time-1]
                 self.cumReward[time] = self.cumReward[time-1]
@@ -136,7 +141,8 @@ class PolicyLearning:
                 action = self.explPol(state,time)
                 self.counter[state,action] += 1
                 [newState,r,term] = self.GridWorld.step(state,action)
-                
+                traj.append([newState,r,term])
+
                 record_trajectory[-1].append((state,action,r))
                 
                 rew += r
@@ -147,6 +153,7 @@ class PolicyLearning:
             self.value[:,time] = np.max(self.SAV[:,:,time],axis=1)
             self.cumReward[time] += rew
             self.timeLog.append(iterToEnd)
+            self.trajLog.append(traj)
         
         if optValue is not None:
             self.maxValueError = np.max(np.abs(self.value - optValue.reshape((self.GridWorld.n_states,1))), axis=0)
