@@ -49,24 +49,13 @@ class OptionDiscovery():
 			self.trajectories.append([[s,x,y] for s,x,y in MAXQi.lastTraj if self.GridWorld.static_filter(s)])
 
 			DD_map = self.get_DD_map()
-			newConcept = self.GridWorld.coord2state[np.argmax(DD_map)]
+			newConcepts = []
+			for x in range(self.GridWorld.n_states):
+				i,j = self.GridWorld.state2coord[x]
 
-			conceptList = findall_by_attr(self.MAXQ.actions, value='option', name='type')
-			if self.importance[newConcept] > self.theta and not findall_by_attr(self.MAXQ.actions, value=conceptList, name='conceptState'):
-				self.importance[newConcept] += 1
-				self.makeOption(newConcept)
-				# ↑ This will compute I, beta and pi
-				# create the option using option = Option() class constructor
-				# then add the option to MAXQ instance by using self.MAXQ.addOption(option)
-
-			elif self.importance[newConcept] > self.theta:
-				self.importance[newConcept] += 1
-				option = findall_by_attr(self.MAXQ.actions, value=conceptList, name='conceptState')[0]
-				self.updateOption(option, option.conceptState)
-				# ↑ This will update I and pi using the new trajectory
-				# Note that I may need to be broadened over time
-
-			self.importance *= self.lbda
+				if DD_map[i,j] >= TO_DEFINE:
+					#self.makeOption(newConcept)
+					#self.updateOption(option, option.conceptState)
 
 
 	def get_DD_map(self):
