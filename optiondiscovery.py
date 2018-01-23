@@ -29,6 +29,7 @@ class OptionDiscovery():
 		self.lbda = lbda
 
 
+
 	def run(self, coords, debug=False):
 
 		# Initialize enough trajectories to cross out erroneous concepts on the first runs
@@ -38,14 +39,14 @@ class OptionDiscovery():
 			self.MAXQ.actions.option.log = 'active'
 			self.MAXQ.time = 1
 			self.MAXQ.run(self.MAXQ.actions, initState, debug, history=True)
-			self.trajectories.append(filter(self.MAXQ.lastTraj))
+			self.trajectories.append([[s,x,y] for s,x,y in MAXQi.lastTraj if self.GridWorld.static_filter(s)])
 
 		for it in tqdm(range(self.n_iter), desc="Discovering options on {} runs".format(n_iter)):
 			initState = self.GridWorld.reset()
 			self.MAXQ.actions.option.log = 'active'
 			self.MAXQ.time = 1
 			self.MAXQ.run(self.MAXQ.actions, initState, debug, history=True)
-			self.trajectories.append(filter(self.MAXQ.lastTraj))
+			self.trajectories.append([[s,x,y] for s,x,y in MAXQi.lastTraj if self.GridWorld.static_filter(s)])
 
 			DD_map = self.get_DD_map()
 			newConcept = self.GridWorld.coord2state[np.argmax(DD_map)]
