@@ -17,20 +17,16 @@ from random import random
 from tqdm import tqdm
 
 class OptionDiscovery():
-	def __init__(self, GridWorld, alpha0=0.25, expl0=0.9, n_iter=5000, theta=0.8, lbda=0.95, name='Unknown Option'):
-		# Note: for the algorithm to pickup new options, we must have theta <= 1/(1-lbda)
+	def __init__(self, GridWorld, expl0=0.1, n_iter=5000):
 		self.GridWorld = GridWorld
-		self.MAXQ = MAXQ(GridWorld, alpha0, expl0, n_iter, runOnCreate=False)
+		self.MAXQ = MAXQ(GridWorld, expl0, n_iter, runOnCreate=False)
 		self.subgoals = []	# will contain a list of options, with additional attribute rho_c
 		self.importance = np.zeros(self.GridWorld.n_states)
 		self.trajectories = [[]]
 		self.options = []
-		self.theta = theta
-		self.lbda = lbda
 
 
-
-	def run(self, coords, debug=False):
+	def run(self, debug=False):
 
 		# Initialize enough trajectories to cross out erroneous concepts on the first runs
 		n_init = 20
@@ -40,27 +36,29 @@ class OptionDiscovery():
 			self.MAXQ.it = it
 			self.MAXQ.time = 1
 			self.MAXQ.run(self.MAXQ.actions, initState, debug, history=True)
-			self.trajectories.append([[s,x,y] for s,x,y in MAXQi.lastTraj if self.GridWorld.static_filter(s)])
+			self.trajectories.append([[s,x,y] for s,x,y in self.MAXQ.lastTraj if self.GridWorld.static_filter(s)])
 
-		for it in tqdm(range(self.n_iter), desc="Discovering options on {} runs".format(n_iter)):
+		for it in tqdm(range(self.MAXQ.n_iter), desc="Discovering options on {} runs".format(self.MAXQ.n_iter)):
 			initState = self.GridWorld.reset()
 			self.MAXQ.actions.option.log = 'active'
 			self.MAXQ.time = 1
 			self.MAXQ.run(self.MAXQ.actions, initState, debug, history=True)
-			self.trajectories.append([[s,x,y] for s,x,y in MAXQi.lastTraj if self.GridWorld.static_filter(s)])
+			self.trajectories.append([[s,x,y] for s,x,y in self.MAXQ.lastTraj if self.GridWorld.static_filter(s)])
 
 			DD_map = self.get_DD_map()
 			M_ddmap = np.max(DD_map)
 
 			newConcepts = []
-			for s,_,_ in MAXQi.lastTraj:
+			for s,_,_ in self.MAXQ.lastTraj:
 				i,j = self.GridWorld.state2coord[s]
 
 				if DD_map[i,j] == M_ddmap:
 					newConcepts.append(s)
 			
 			#We just add or update 1 concept:
-			self.make_or_update(newConcepts[0])
+			if len(newConcepts)>0:
+				pdb.set_trace()
+				self.makeOrUpdate(newConcepts[0])
 			#self.makeOption(newConcept)
 			#self.updateOption(option, option.conceptState)
 
@@ -71,12 +69,12 @@ class OptionDiscovery():
 	    count = {}
 	    for s in range(self.GridWorld.n_states):
 	        count[s] = 0
-	    for traj in self.trajectories
+	    for traj in self.trajectories:
 	        seen = {}
 	        for x,_,_ in traj:
 
 	            if not x in seen and self.GridWorld.static_filter(x):
-	                i,j = twoRooms.state2coord[x]
+	                i,j = self.GridWorld.state2coord[x]
 	                DD_map[i,j] += 1
 	                seen[x] = True
 	    
@@ -92,10 +90,10 @@ class OptionDiscovery():
 		#2) For each state on the union of trajectories, compute the value function as the mean of discount rate power time to goal
 		value = np.zeros(self.GridWorld.n_states)
 		n_visit = np.zeros(self.GridWorld.n_states)
-		initSet = np.zeros((self.GridWorld.n_rows; self.GridWorld.n_cols))
+		initSet = np.zeros((self.GridWorld.n_rows, self.GridWorld.n_cols))
 
 		for traj in trajectories:
-		time_to_goal = 0
+			time_to_goal = 0
 			for step in reversed(traj):
 				initSet[self.GridWorld.state2coord[step][0], self.GridWorld.state2coord[step][1]] = 1
 				value[step] = float(np.power(self.GridWorld.gamma,time_to_goal))/(1+n_visit[step]) + float(value[step])/(1+n_visit[step])
@@ -123,6 +121,20 @@ class OptionDiscovery():
 			option.n_visit[step] += 1
 			time_to_goal += 1
 
+
+	def makeOrUpdate(self, conceptState):
+		optionList = findall_by_attr(self.MAXQ.actions, value='option', name='type')
+		if findall_by_attr(self.MAXQ.actions, value=conceptState, name='conceptState'):
+			self.makeOption(conceptState)
+			# ↑ This will compute I, beta and pi
+			# create the option using option = Option() class constructor
+			# then add the option to MAXQ instance by using self.MAXQ.addOption(option)
+
+		else:
+			option = findall_by_attr(self.MAXQ.actions, value=conceptState, name='conceptState')[0]
+			self.updateOption(option, option.conceptState)
+			# ↑ This will update I and pi using the new trajectory
+			# Note that I may need to be broadened over time
 
 def get_truncated_trajectories(trajectories, state):
 	"""Finds all past trajectories containing state and truncates them until fist visit of state"""
