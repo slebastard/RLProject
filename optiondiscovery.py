@@ -37,6 +37,7 @@ class OptionDiscovery():
 		for it in range(n_init):
 			initState = self.GridWorld.reset()
 			self.MAXQ.actions.option.log = 'active'
+			self.MAXQ.it = it
 			self.MAXQ.time = 1
 			self.MAXQ.run(self.MAXQ.actions, initState, debug, history=True)
 			self.trajectories.append([[s,x,y] for s,x,y in MAXQi.lastTraj if self.GridWorld.static_filter(s)])
@@ -49,13 +50,19 @@ class OptionDiscovery():
 			self.trajectories.append([[s,x,y] for s,x,y in MAXQi.lastTraj if self.GridWorld.static_filter(s)])
 
 			DD_map = self.get_DD_map()
-			newConcepts = []
-			for x in range(self.GridWorld.n_states):
-				i,j = self.GridWorld.state2coord[x]
+			M_ddmap = np.max(DD_map)
 
-				if DD_map[i,j] >= TO_DEFINE:
-					#self.makeOption(newConcept)
-					#self.updateOption(option, option.conceptState)
+			newConcepts = []
+			for s,_,_ in MAXQi.lastTraj:
+				i,j = self.GridWorld.state2coord[s]
+
+				if DD_map[i,j] == M_ddmap:
+					newConcepts.append(s)
+			
+			#We just add or update 1 concept:
+			self.make_or_update(newConcepts[0])
+			#self.makeOption(newConcept)
+			#self.updateOption(option, option.conceptState)
 
 
 	def get_DD_map(self):
