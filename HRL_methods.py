@@ -86,7 +86,6 @@ class MAXQ():
 				self.lastTraj = []
 				self.it = it
 				initState = self.GridWorld.reset()
-				self.actions.option.log = 'active'
 				self.time = 1
 				self.run(self.actions, initState, debug, history=False)
 				self.trajLog.append(self.lastTraj)
@@ -174,13 +173,15 @@ class MAXQ():
 				if absorb:
 					task.option.log = 'quit'
 				[greedyValue, greedyAction] = self.evaluate(task, next_state)
-				alpha = self.learningRate(state, task.actionID)
+				alpha = self.learningRate(state, subtask.actionID)
 				self.C[task.actionID + 1, state, subtask.actionID] = (1-alpha)*self.C[task.actionID + 1, state, subtask.actionID] + alpha*np.power(self.GridWorld.gamma, N)*greedyValue
 				
 				count = count + N
 				state = next_state
 				task.option.escape(self.GridWorld.state2coord[state])
-			self.treeLog = self.treeLog[:-3]
+			if task.actionID > 0:
+				self.treeLog = self.treeLog[:-3]
+			task.option.log = 'active'
 			return [count, state, absorb]
 		else:
 			raise ValueError("Action type should be either 'primitive' or 'option'")
@@ -210,6 +211,7 @@ class MAXQ():
 		if failed or np.isnan(greedyActionID):
 			actionID = np.random.choice(self.GridWorld.state_actions[state])
 
+		self.Q = Q
 		return actionID
 
 
