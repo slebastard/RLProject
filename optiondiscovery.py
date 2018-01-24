@@ -49,7 +49,12 @@ class OptionDiscovery():
 			M_ddmap = np.max(DD_map)
 
 			newConcepts = []
+			seen = {}
 			for s,_,_ in self.MAXQ.lastTraj:
+				if s in seen:
+					continue
+				seen[s] = True
+
 				i,j = self.GridWorld.state2coord[s]
 
 				if DD_map[i,j] == M_ddmap:
