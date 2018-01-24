@@ -94,6 +94,8 @@ class MAXQ():
  
 
 	def learningRate(self, state, actionID):
+		if actionID == 4 or actionID == 5:
+			return 0
 		trajCount = self.counter[state, actionID]
 		if trajCount == 0:
 			return 1
