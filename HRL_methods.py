@@ -77,6 +77,8 @@ class MAXQ():
 		for pre, _, node in RenderTree(self.actions):
 			print("%s%s" % (pre, node.name))
 
+		self.it = 0
+
 		self.timeLog = []
 		self.log = [[]]
 		if runOnCreate:
